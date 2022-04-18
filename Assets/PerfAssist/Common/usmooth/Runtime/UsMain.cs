@@ -1,4 +1,5 @@
 ﻿using System;
+using PerfAssist;
 using UnityEngine;
 
 public class UsMain : IDisposable

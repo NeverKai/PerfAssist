@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using PerfAssist;
 using UnityEditor;
 using UnityEditor.MemoryProfiler;
 using UnityEditorInternal;

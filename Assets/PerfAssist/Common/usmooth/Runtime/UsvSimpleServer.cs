@@ -5,6 +5,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Collections.Generic;
 using System.Reflection;
+using PerfAssist;
 
 public delegate void UsvClientDisconnectedHandler(string clientID);
 

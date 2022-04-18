@@ -26,6 +26,7 @@ SOFTWARE.
 
 using System;
 using System.Collections.Generic;
+using PerfAssist;
 using UnityEngine;
 
 #if UNITY_EDITOR

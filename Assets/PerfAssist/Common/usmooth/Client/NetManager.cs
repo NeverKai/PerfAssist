@@ -28,168 +28,173 @@ using System;
 
 using Timer = System.Timers.Timer;
 
-public class NetManager : IDisposable
+namespace PerfAssist
 {
-    public static NetManager Instance;
-
-    public bool IsConnected { get { return _client.IsConnected; } }
-    public string RemoteAddr { get { return _client.RemoteAddr; } }
-
-    public event SysPost.StdMulticastDelegation LogicallyConnected;
-    public event SysPost.StdMulticastDelegation LogicallyDisconnected;
-
-    public NetManager()
+    public class NetManager : IDisposable
     {
-        _client.Connected += OnConnected;
-        _client.Disconnected += OnDisconnected;
+        public static NetManager Instance;
 
-        _client.RegisterCmdHandler(eNetCmd.SV_HandshakeResponse, Handle_HandshakeResponse);
-        _client.RegisterCmdHandler(eNetCmd.SV_KeepAliveResponse, Handle_KeepAliveResponse);
-        _client.RegisterCmdHandler(eNetCmd.SV_ExecCommandResponse, Handle_ExecCommandResponse);
+        public bool IsConnected { get { return _client.IsConnected; } }
+        public string RemoteAddr { get { return _client.RemoteAddr; } }
 
-        _guardTimer.Timeout += OnGuardingTimeout;
+        public event SysPost.StdMulticastDelegation LogicallyConnected;
+        public event SysPost.StdMulticastDelegation LogicallyDisconnected;
 
-        _tickTimer.Elapsed += (object sender, global::System.Timers.ElapsedEventArgs e) => Tick();
-        _tickTimer.AutoReset = true;
-    }
-
-    public void Dispose()
-    {
-        _client.Dispose();
-    }
-
-    public bool Connect(string addr)
-    {
-        _client.Connect(addr, UsConst.ServerPort);
-        return true;
-    }
-
-    public void Disconnect()
-    {
-        _client.Disconnect();
-    }
-
-    public void Send(UsCmd cmd)
-    {
-        _client.SendPacket(cmd);
-    }
-
-    public void RegisterCmdHandler(eNetCmd cmd, UsCmdHandler handler)
-    {
-        _client.RegisterCmdHandler(cmd, handler);
-    }
-
-    public void ExecuteCmd(string cmdText)
-    {
-        if (!IsConnected)
+        public NetManager()
         {
-            NetUtil.Log("not connected to server, command ignored.");
-            return;
+            _client.Connected += OnConnected;
+            _client.Disconnected += OnDisconnected;
+
+            _client.RegisterCmdHandler(eNetCmd.SV_HandshakeResponse, Handle_HandshakeResponse);
+            _client.RegisterCmdHandler(eNetCmd.SV_KeepAliveResponse, Handle_KeepAliveResponse);
+            _client.RegisterCmdHandler(eNetCmd.SV_ExecCommandResponse, Handle_ExecCommandResponse);
+
+            _guardTimer.Timeout += OnGuardingTimeout;
+
+            _tickTimer.Elapsed += (object sender, global::System.Timers.ElapsedEventArgs e) => Tick();
+            _tickTimer.AutoReset = true;
         }
 
-        if (cmdText.Length == 0)
+        public void Dispose()
         {
-            NetUtil.Log("the command bar is empty, try 'help' to list all supported commands.");
-            return;
+            _client.Dispose();
         }
 
-        UsCmd cmd = new UsCmd();
-        cmd.WriteNetCmd(eNetCmd.CL_ExecCommand);
-        cmd.WriteString(cmdText);
-        Send(cmd);
+        public bool Connect(string addr)
+        {
+            _client.Connect(addr, UsConst.ServerPort);
+            return true;
+        }
 
-        NetUtil.Log("command executed: [b]{0}[/b]", cmdText);
-    }
+        public void Disconnect()
+        {
+            _client.Disconnect();
+        }
 
-    private void OnConnected(object sender, EventArgs e)
-    {
-        UsCmd cmd = new UsCmd();
-        cmd.WriteInt16((short)eNetCmd.CL_Handshake);
-        cmd.WriteInt16(UsConst.VersionMajor);
-        cmd.WriteInt16(UsConst.VersionMinor);
-        cmd.WriteInt16(UsConst.VersionPatch);
-        _client.SendPacket(cmd);
+        public void Send(UsCmd cmd)
+        {
+            _client.SendPacket(cmd);
+        }
 
-        _tickTimer.Start();
-        _guardTimer.Activate();
-    }
+        public void RegisterCmdHandler(eNetCmd cmd, UsCmdHandler handler)
+        {
+            _client.RegisterCmdHandler(cmd, handler);
+        }
 
-    private void OnDisconnected(object sender, EventArgs e)
-    {
-        _tickTimer.Stop();
-        _guardTimer.Deactivate();
+        public void ExecuteCmd(string cmdText)
+        {
+            if (!IsConnected)
+            {
+                NetUtil.Log("not connected to server, command ignored.");
+                return;
+            }
 
-        SysPost.InvokeMulticast(this, LogicallyDisconnected);
-    }
+            if (cmdText.Length == 0)
+            {
+                NetUtil.Log("the command bar is empty, try 'help' to list all supported commands.");
+                return;
+            }
 
-    private void OnGuardingTimeout(object sender, EventArgs e)
-    {
-        NetUtil.LogError("guarding timeout, closing connection...");
-        Disconnect();
-    }
+            UsCmd cmd = new UsCmd();
+            cmd.WriteNetCmd(eNetCmd.CL_ExecCommand);
+            cmd.WriteString(cmdText);
+            Send(cmd);
 
-    private bool Handle_HandshakeResponse(eNetCmd cmd, UsCmd c)
-    {
-        NetUtil.Log("eNetCmd.SV_HandshakeResponse received, connection validated.");
+            NetUtil.Log("command executed: [b]{0}[/b]", cmdText);
+        }
 
-        SysPost.InvokeMulticast(this, LogicallyConnected);
-
-        _guardTimer.Deactivate();
-        return true;
-    }
-
-    private bool Handle_KeepAliveResponse(eNetCmd cmd, UsCmd c)
-    {
-        //NetUtil.Log("'KeepAlive' received.");
-        return true;
-    }
-
-    private bool Handle_ExecCommandResponse(eNetCmd cmd, UsCmd c)
-    {
-        int code = c.ReadInt32();
-        NetUtil.Log("command executing result: [b]{0}[/b]", code);
-
-        return true;
-    }
-
-    private long INTERVAL_KeepAlive = 3000;
-    private long INTERVAL_CheckingConnectionStatus = 1000;
-    private long INTERVAL_ReceivingData = 200;
-
-    private long _currentTimeInMilliseconds = 0;
-    private long _lastKeepAlive = 0;
-    private long _lastCheckingConnectionStatus = 0;
-    private long _lastReceivingData = 0;
-    private void Tick()
-    {
-        if (!_client.IsConnected)
-            return;
-
-        _currentTimeInMilliseconds = DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
-
-        if (_currentTimeInMilliseconds - _lastKeepAlive > INTERVAL_KeepAlive)
+        private void OnConnected(object sender, EventArgs e)
         {
             UsCmd cmd = new UsCmd();
-            cmd.WriteNetCmd(eNetCmd.CL_KeepAlive);
+            cmd.WriteInt16((short)eNetCmd.CL_Handshake);
+            cmd.WriteInt16(UsConst.VersionMajor);
+            cmd.WriteInt16(UsConst.VersionMinor);
+            cmd.WriteInt16(UsConst.VersionPatch);
             _client.SendPacket(cmd);
-            _lastKeepAlive = _currentTimeInMilliseconds;
+
+            _tickTimer.Start();
+            _guardTimer.Activate();
         }
 
-        if (_currentTimeInMilliseconds - _lastCheckingConnectionStatus > INTERVAL_CheckingConnectionStatus)
+        private void OnDisconnected(object sender, EventArgs e)
         {
-            _client.Tick_CheckConnectionStatus();
-            _lastCheckingConnectionStatus = _currentTimeInMilliseconds;
+            _tickTimer.Stop();
+            _guardTimer.Deactivate();
+
+            SysPost.InvokeMulticast(this, LogicallyDisconnected);
         }
 
-        if (_currentTimeInMilliseconds - _lastReceivingData > INTERVAL_ReceivingData)
+        private void OnGuardingTimeout(object sender, EventArgs e)
         {
-            _client.Tick_ReceivingData();
-            _lastReceivingData = _currentTimeInMilliseconds;
+            NetUtil.LogError("guarding timeout, closing connection...");
+            Disconnect();
         }
+
+        private bool Handle_HandshakeResponse(eNetCmd cmd, UsCmd c)
+        {
+            NetUtil.Log("eNetCmd.SV_HandshakeResponse received, connection validated.");
+
+            SysPost.InvokeMulticast(this, LogicallyConnected);
+
+            _guardTimer.Deactivate();
+            return true;
+        }
+
+        private bool Handle_KeepAliveResponse(eNetCmd cmd, UsCmd c)
+        {
+            //NetUtil.Log("'KeepAlive' received.");
+            return true;
+        }
+
+        private bool Handle_ExecCommandResponse(eNetCmd cmd, UsCmd c)
+        {
+            int code = c.ReadInt32();
+            NetUtil.Log("command executing result: [b]{0}[/b]", code);
+
+            return true;
+        }
+
+        private long INTERVAL_KeepAlive = 3000;
+        private long INTERVAL_CheckingConnectionStatus = 1000;
+        private long INTERVAL_ReceivingData = 200;
+
+        private long _currentTimeInMilliseconds = 0;
+        private long _lastKeepAlive = 0;
+        private long _lastCheckingConnectionStatus = 0;
+        private long _lastReceivingData = 0;
+        private void Tick()
+        {
+            if (!_client.IsConnected)
+                return;
+
+            _currentTimeInMilliseconds = DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
+
+            if (_currentTimeInMilliseconds - _lastKeepAlive > INTERVAL_KeepAlive)
+            {
+                UsCmd cmd = new UsCmd();
+                cmd.WriteNetCmd(eNetCmd.CL_KeepAlive);
+                _client.SendPacket(cmd);
+                _lastKeepAlive = _currentTimeInMilliseconds;
+            }
+
+            if (_currentTimeInMilliseconds - _lastCheckingConnectionStatus > INTERVAL_CheckingConnectionStatus)
+            {
+                _client.Tick_CheckConnectionStatus();
+                _lastCheckingConnectionStatus = _currentTimeInMilliseconds;
+            }
+
+            if (_currentTimeInMilliseconds - _lastReceivingData > INTERVAL_ReceivingData)
+            {
+                _client.Tick_ReceivingData();
+                _lastReceivingData = _currentTimeInMilliseconds;
+            }
+        }
+
+        public NetClient Client { get { return _client; } }
+        private NetClient _client = new NetClient();
+        private NetGuardTimer _guardTimer = new NetGuardTimer();
+        private Timer _tickTimer = new Timer(100);
     }
-
-    public NetClient Client { get { return _client; } }
-    private NetClient _client = new NetClient();
-    private NetGuardTimer _guardTimer = new NetGuardTimer();
-    private Timer _tickTimer = new Timer(100);
 }
+
+

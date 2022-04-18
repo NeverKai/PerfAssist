@@ -1,19 +1,24 @@
-﻿public delegate void NetLogHandler(string fmt, params object[] args);
-
-public static class NetUtil
+﻿
+namespace PerfAssist
 {
-    public static NetLogHandler LogHandler { get; set; }
-    public static NetLogHandler LogErrorHandler { get; set; }
+    public delegate void NetLogHandler(string fmt, params object[] args);
 
-    public static void Log(string fmt, params object[] args)
+    public static class NetUtil
     {
-        if (LogHandler != null)
-            LogHandler(fmt, args);
-    }
+        public static NetLogHandler LogHandler { get; set; }
+        public static NetLogHandler LogErrorHandler { get; set; }
 
-    public static void LogError(string fmt, params object[] args)
-    {
-        if (LogErrorHandler != null)
-            LogErrorHandler(fmt, args);
+        public static void Log(string fmt, params object[] args)
+        {
+            if (LogHandler != null)
+                LogHandler(fmt, args);
+        }
+
+        public static void LogError(string fmt, params object[] args)
+        {
+            if (LogErrorHandler != null)
+                LogErrorHandler(fmt, args);
+        }
     }
 }
+

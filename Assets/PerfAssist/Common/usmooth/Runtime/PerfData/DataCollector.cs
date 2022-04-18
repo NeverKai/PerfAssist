@@ -25,11 +25,10 @@ SOFTWARE.
 */
 
 using UnityEngine;
-using System.Collections;
 using System.Collections.Generic;
 
 using System;
-
+using PerfAssist;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif

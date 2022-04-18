@@ -6,7 +6,9 @@ using System.Linq;
 using System.Text;
 using UnityEngine;
 
-public class LogBuffer
+namespace PerfAssist
+{
+    public class LogBuffer
 {
     public const int KB = 1024;
     public const int InternalBufSize = 16 * KB;
@@ -352,4 +354,7 @@ public class LogService : IDisposable
     private bool _reentranceGuard = false;
 
     public static string LastLogFile { get; set; }
+    }
+
 }
+

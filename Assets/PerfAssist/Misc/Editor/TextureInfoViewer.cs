@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using PerfAssist;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Profiling;

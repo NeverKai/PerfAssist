@@ -27,6 +27,7 @@ SOFTWARE.
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using PerfAssist;
 using UnityEngine;
 
 public delegate bool UsvConsoleCmdHandler(string[] args);

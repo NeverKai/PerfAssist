@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEditor.MemoryProfiler;
 using System.Linq;
 using System.Collections.Generic;
+using PerfAssist;
 
 namespace MemoryProfilerWindow
 {
